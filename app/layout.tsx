@@ -26,10 +26,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        <link rel="manifest" href="/manifest.json" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-      </head>
       <body className="min-h-dvh overflow-hidden ios-glass-bg">
         {children}
       </body>
