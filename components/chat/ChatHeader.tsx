@@ -4,6 +4,7 @@ import { usePresence } from '@/hooks/usePresence';
 import { useTypingStatus } from '@/hooks/useTypingStatus';
 import { useAuth } from '@/hooks/useAuth';
 import { formatRelativeTime } from '@/lib/utils';
+import { useTheme } from 'next-themes';
 import { TypingIndicator } from './TypingIndicator';
 import {
   DropdownMenu,
@@ -21,6 +22,7 @@ export function ChatHeader({ partnerName, onSearchToggle }: ChatHeaderProps) {
   const { isPartnerOnline, partnerLastSeen } = usePresence();
   const { isPartnerTyping } = useTypingStatus();
   const { logout } = useAuth();
+  const { theme, setTheme } = useTheme();
 
   const getStatusText = () => {
     if (isPartnerTyping) return <TypingIndicator />;
@@ -36,9 +38,7 @@ export function ChatHeader({ partnerName, onSearchToggle }: ChatHeaderProps) {
   };
 
   const toggleDarkMode = () => {
-    document.documentElement.classList.toggle('dark');
-    const isDark = document.documentElement.classList.contains('dark');
-    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    setTheme(theme === 'dark' ? 'light' : 'dark');
   };
 
   return (

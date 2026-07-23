@@ -103,7 +103,7 @@ export function AudioRecorder({
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex items-center gap-3 bg-wa-input-bg px-4 py-3 dark:bg-wa-header-dark"
+      className="flex items-center gap-3 bg-black/5 px-4 py-3 dark:bg-black/90"
     >
       {/* Cancel */}
       <button
@@ -116,7 +116,7 @@ export function AudioRecorder({
       {/* Duration + Recording indicator */}
       <div className="flex flex-1 items-center gap-2">
         <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />
-        <span className="text-[14px] font-mono text-gray-700 dark:text-wa-text-primary-dark">
+        <span className="text-[14px] font-mono text-gray-700 dark:text-white/90">
           {formatTime(duration)}
         </span>
       </div>
@@ -124,7 +124,7 @@ export function AudioRecorder({
       {/* Stop & Send */}
       <button
         onClick={stopRecording}
-        className="flex h-10 w-10 items-center justify-center rounded-full bg-wa-green text-white"
+        className="flex h-10 w-10 items-center justify-center rounded-full bg-[#0A84FF] text-white"
       >
         <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
           <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />

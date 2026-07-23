@@ -22,14 +22,13 @@ export function LoginForm() {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: phone.trim(), code }),
+        body: JSON.stringify({ phone: phone.replace(/\s+/g, ''), code }),
       });
 
       const data: LoginResponse = await res.json();
 
       if (data.success) {
-        router.push('/chat');
-        router.refresh();
+        window.location.href = '/chat';
       } else {
         setError(data.error || 'Login failed');
         setShake(true);

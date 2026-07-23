@@ -37,12 +37,12 @@ export function SearchInThread({ isOpen, onClose, onSearch }: SearchInThreadProp
           initial={{ height: 0, opacity: 0 }}
           animate={{ height: 'auto', opacity: 1 }}
           exit={{ height: 0, opacity: 0 }}
-          className="overflow-hidden bg-white dark:bg-wa-header-dark"
+          className="overflow-hidden bg-white dark:bg-black/90"
         >
           <div className="flex items-center gap-2 px-3 py-2">
             <button
               onClick={handleClear}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-wa-tick-grey hover:bg-black/5 dark:hover:bg-white/10"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-black/40 hover:bg-black/5 dark:text-white/40 dark:hover:bg-white/10"
             >
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
@@ -54,7 +54,7 @@ export function SearchInThread({ isOpen, onClose, onSearch }: SearchInThreadProp
               value={query}
               onChange={handleChange}
               placeholder="Search in chat..."
-              className="flex-1 rounded-lg bg-wa-input-bg px-3 py-2 text-[14px] outline-none dark:bg-wa-input-bg-dark dark:text-wa-text-primary-dark"
+              className="flex-1 rounded-lg bg-black/5 px-3 py-2 text-[14px] outline-none dark:bg-white/10 dark:text-white/90"
             />
           </div>
         </motion.div>

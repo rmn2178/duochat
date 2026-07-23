@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef } from 'react';
-import { useAuthContext } from '@/contexts/AuthContext';
+
 import type { Message, SendMessageRequest } from '@/types';
 
 interface UseMessagesReturn {
@@ -15,8 +15,7 @@ interface UseMessagesReturn {
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
 }
 
-export function useMessages(initialMessages: Message[]): UseMessagesReturn {
-  const { currentUser } = useAuthContext();
+export function useMessages(initialMessages: Message[], currentUserId: string): UseMessagesReturn {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(initialMessages.length >= 40);
@@ -53,7 +52,7 @@ export function useMessages(initialMessages: Message[]): UseMessagesReturn {
       const optimisticId = `optimistic-${Date.now()}`;
       const optimisticMessage: Message = {
         id: optimisticId,
-        sender_id: currentUser.id,
+        sender_id: currentUserId,
         receiver_id: '', // Will be set by server
         type: request.type || 'text',
         text: request.text || null,
@@ -103,7 +102,7 @@ export function useMessages(initialMessages: Message[]): UseMessagesReturn {
         return null;
       }
     },
-    [currentUser.id]
+    [currentUserId]
   );
 
   const addMessage = useCallback((message: Message) => {

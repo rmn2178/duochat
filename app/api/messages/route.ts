@@ -1,6 +1,21 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { getSessionUser, getSessionToken, getPartnerConfig } from '@/lib/auth';
 import { createServerSupabase } from '@/lib/supabase/server';
+import { z } from 'zod';
+
+const messageSchema = z.object({
+  type: z.enum(['text', 'image', 'audio']).default('text'),
+  text: z.string().optional().nullable(),
+  image_url: z.string().url().optional().nullable(),
+  audio_url: z.string().url().optional().nullable(),
+  audio_duration_ms: z.number().int().positive().optional().nullable(),
+  reply_to_id: z.string().uuid().optional().nullable(),
+}).refine(data => {
+  if (data.type === 'text' && (!data.text || !data.text.trim())) return false;
+  if (data.type === 'image' && !data.image_url) return false;
+  if (data.type === 'audio' && !data.audio_url) return false;
+  return true;
+}, { message: "Invalid payload for the specified message type" });
 
 /**
  * GET /api/messages — Paginated message history
@@ -59,6 +74,11 @@ export async function GET(request: NextRequest) {
  * POST /api/messages — Send a new message
  */
 export async function POST(request: NextRequest) {
+  // CSRF Protection
+  const site = request.headers.get('sec-fetch-site');
+  if (site && site !== 'same-origin') {
+    return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
+  }
   const user = await getSessionUser();
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -77,29 +97,19 @@ export async function POST(request: NextRequest) {
   const supabase = createServerSupabase(token);
   const body = await request.json();
 
-  const { type = 'text', text, image_url, audio_url, audio_duration_ms, reply_to_id } = body;
+  try {
+    const parsed = messageSchema.parse(body);
 
-  // Validate
-  if (type === 'text' && !text?.trim()) {
-    return NextResponse.json({ error: 'Text is required for text messages' }, { status: 400 });
-  }
-  if (type === 'image' && !image_url) {
-    return NextResponse.json({ error: 'Image URL is required' }, { status: 400 });
-  }
-  if (type === 'audio' && !audio_url) {
-    return NextResponse.json({ error: 'Audio URL is required' }, { status: 400 });
-  }
-
-  const messageData = {
-    sender_id: user.id, // Always forced server-side
-    receiver_id: partner.id,
-    type,
-    text: text?.trim() || null,
-    image_url: image_url || null,
-    audio_url: audio_url || null,
-    audio_duration_ms: audio_duration_ms || null,
-    reply_to_id: reply_to_id || null,
-  };
+    const messageData = {
+      sender_id: user.id, // Always forced server-side
+      receiver_id: partner.id,
+      type: parsed.type,
+      text: parsed.text?.trim() || null,
+      image_url: parsed.image_url || null,
+      audio_url: parsed.audio_url || null,
+      audio_duration_ms: parsed.audio_duration_ms || null,
+      reply_to_id: parsed.reply_to_id || null,
+    };
 
   const { data: message, error } = await supabase
     .from('messages')
@@ -112,5 +122,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to send message' }, { status: 500 });
   }
 
-  return NextResponse.json({ message });
+  return NextResponse.json({ message: message }, { status: 201 });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      return NextResponse.json({ error: 'Invalid request payload', details: (err as any).errors }, { status: 400 });
+    }
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
 }

@@ -16,6 +16,7 @@ interface MessageInputProps {
   onCancelReply: () => void;
   currentUserId: string;
   partnerName: string;
+  onSend: (req: SendMessageRequest, replyToId?: string) => Promise<Message | null>;
 }
 
 export function MessageInput({
@@ -23,6 +24,7 @@ export function MessageInput({
   onCancelReply,
   currentUserId,
   partnerName,
+  onSend,
 }: MessageInputProps) {
   const [text, setText] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -61,16 +63,8 @@ export function MessageInput({
     };
 
     try {
-      const res = await fetch('/api/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...request,
-          reply_to_id: replyTo?.id,
-        }),
-      });
+      await onSend(request, replyTo?.id);
 
-      if (!res.ok) throw new Error('Failed to send');
       onCancelReply();
     } catch (err) {
       console.error('Send failed:', err);
@@ -114,15 +108,10 @@ export function MessageInput({
       });
 
       // Send image message
-      await fetch('/api/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'image',
-          image_url: publicUrl,
-          reply_to_id: replyTo?.id,
-        }),
-      });
+      await onSend({
+        type: 'image',
+        image_url: publicUrl,
+      }, replyTo?.id);
 
       onCancelReply();
     } catch (err) {

@@ -1,6 +1,12 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { getSessionUser, getSessionToken } from '@/lib/auth';
 import { createServerSupabase } from '@/lib/supabase/server';
+import { z } from 'zod';
+
+const patchSchema = z.object({
+  action: z.enum(['delivered', 'read', 'react', 'unreact', 'deleteForMe', 'deleteForEveryone', 'star', 'unstar']),
+  emoji: z.string().optional().nullable(),
+});
 
 const DELETE_FOR_EVERYONE_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 
@@ -12,6 +18,12 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // CSRF Protection
+  const site = request.headers.get('sec-fetch-site');
+  if (site && site !== 'same-origin') {
+    return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
+  }
+
   const user = await getSessionUser();
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -24,7 +36,12 @@ export async function PATCH(
 
   const { id } = await params;
   const supabase = createServerSupabase(token);
-  const body = await request.json();
+  let body;
+  try {
+    body = patchSchema.parse(await request.json());
+  } catch (err) {
+    return NextResponse.json({ error: 'Invalid request payload' }, { status: 400 });
+  }
   const { action } = body;
 
   // Fetch the message first
@@ -79,9 +96,11 @@ export async function PATCH(
       break;
 
     case 'deleteForMe':
-      updateData = {
-        deleted_for: [...(message.deleted_for || []), user.id],
-      };
+      await supabase.rpc('append_array_distinct', {
+        message_id: id,
+        column_name: 'deleted_for',
+        user_id: user.id
+      });
       break;
 
     case 'deleteForEveryone':
@@ -104,15 +123,19 @@ export async function PATCH(
       break;
 
     case 'star':
-      updateData = {
-        starred_by: [...(message.starred_by || []).filter((uid: string) => uid !== user.id), user.id],
-      };
+      await supabase.rpc('append_array_distinct', {
+        message_id: id,
+        column_name: 'starred_by',
+        user_id: user.id
+      });
       break;
 
     case 'unstar':
-      updateData = {
-        starred_by: (message.starred_by || []).filter((uid: string) => uid !== user.id),
-      };
+      await supabase.rpc('remove_array_item', {
+        message_id: id,
+        column_name: 'starred_by',
+        user_id: user.id
+      });
       break;
 
     default:

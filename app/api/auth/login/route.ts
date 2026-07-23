@@ -1,17 +1,28 @@
 import { NextResponse } from 'next/server';
 import { getUserByPhone, signSessionJwt, COOKIE_NAME } from '@/lib/auth';
+import { createServiceRoleSupabase } from '@/lib/supabase/server';
+import { compareCode } from '@/lib/crypto';
 
-// Simple in-memory rate limiter
-const loginAttempts = new Map<string, { count: number; resetAt: number }>();
 const MAX_ATTEMPTS = 5;
 const WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const entry = loginAttempts.get(ip);
+async function checkRateLimit(ip: string): Promise<boolean> {
+  const supabase = createServiceRoleSupabase();
+  const now = new Date();
+  
+  const { data: entry } = await supabase
+    .from('rate_limits')
+    .select('*')
+    .eq('ip', ip)
+    .single();
 
-  if (!entry || now > entry.resetAt) {
-    loginAttempts.set(ip, { count: 1, resetAt: now + WINDOW_MS });
+  if (!entry || new Date(entry.reset_at) < now) {
+    const resetAt = new Date(now.getTime() + WINDOW_MS);
+    await supabase.from('rate_limits').upsert({
+      ip,
+      count: 1,
+      reset_at: resetAt.toISOString(),
+    });
     return true;
   }
 
@@ -19,7 +30,7 @@ function checkRateLimit(ip: string): boolean {
     return false;
   }
 
-  entry.count++;
+  await supabase.from('rate_limits').update({ count: entry.count + 1 }).eq('ip', ip);
   return true;
 }
 
@@ -31,7 +42,7 @@ export async function POST(request: Request) {
       request.headers.get('x-real-ip') ||
       'unknown';
 
-    if (!checkRateLimit(ip)) {
+    if (!(await checkRateLimit(ip))) {
       return NextResponse.json(
         { success: false, error: 'Too many attempts. Please try again later.' },
         { status: 429 }
@@ -60,11 +71,9 @@ export async function POST(request: Request) {
     }
 
     // Verify the secret code against the environment variable
-    console.log('--- DEBUG AUTH ---');
-    console.log('Expected Code:', user.secretCode);
-    console.log('Provided Code:', code);
+    const isValid = await compareCode(code, user.secretCode);
     
-    if (code !== user.secretCode) {
+    if (!isValid) {
       return NextResponse.json(
         { success: false, error: 'Invalid phone number or code.' },
         { status: 401 }

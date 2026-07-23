@@ -35,7 +35,7 @@ export async function POST() {
   // Map to the format Gemini expects, only text messages
   const history = messages
     .reverse()
-    .filter((msg) => msg.type === 'text' && msg.text && !msg.deleted_for_everyone)
+    .filter((msg) => msg.type === 'text' && msg.text && !msg.deleted_for_everyone && !msg.deleted_for?.includes(user.id))
     .map((msg) => ({
       sender: msg.sender_id === user.id ? ('me' as const) : ('them' as const),
       text: msg.text!,

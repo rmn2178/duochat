@@ -1,8 +1,10 @@
 'use client';
 
+import { useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { formatMessageTime, formatDuration, cn } from '@/lib/utils';
 import type { Message } from '@/types';
+import Image from 'next/image';
 
 interface ChatBubbleProps {
   message: Message;
@@ -16,10 +18,38 @@ interface ChatBubbleProps {
 
 function StatusTicks({ message }: { message: Message }) {
   const status = message._status;
-  if (status === 'sending') return <span className="ml-1 text-[10px]">Sending...</span>;
-  if (message.read_at) return <span className="ml-1 text-[10px] font-medium text-white/90">Read</span>;
-  if (message.delivered_at) return <span className="ml-1 text-[10px] text-white/70">Delivered</span>;
-  return <span className="ml-1 text-[10px] text-white/70">Sent</span>;
+  
+  if (status === 'sending') {
+    return (
+      <svg className="h-3 w-3 ml-1 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    );
+  }
+  
+  if (message.read_at) {
+    return (
+      <svg className="h-[14px] w-4 ml-1 text-[#00E5FF] drop-shadow-sm" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M2 12l4 4 8-8" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M10 12l4 4 8-8" />
+      </svg>
+    );
+  }
+  
+  if (message.delivered_at) {
+    return (
+      <svg className="h-[14px] w-4 ml-1 text-white/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M2 12l4 4 8-8" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M10 12l4 4 8-8" />
+      </svg>
+    );
+  }
+  
+  return (
+    <svg className="h-[14px] w-[14px] ml-1 text-white/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+    </svg>
+  );
 }
 
 export function ChatBubble({
@@ -44,17 +74,20 @@ export function ChatBubble({
   };
 
   // Long press handler
-  let longPressTimer: NodeJS.Timeout | null = null;
+  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
 
   const handleTouchStart = (e: React.TouchEvent) => {
-    longPressTimer = setTimeout(() => {
+    longPressTimer.current = setTimeout(() => {
       onLongPress(message, e);
       if (navigator.vibrate) navigator.vibrate(15);
     }, 500);
   };
 
   const handleTouchEnd = () => {
-    if (longPressTimer) clearTimeout(longPressTimer);
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
   };
 
   const handleContextMenu = (e: React.MouseEvent) => {
@@ -62,11 +95,17 @@ export function ChatBubble({
     onLongPress(message, e);
   };
 
+  // Stable random audio waveform heights based on message id
+  const waveformHeights = useMemo(() => {
+    const seed = message.id.charCodeAt(0) + message.id.charCodeAt(message.id.length - 1);
+    return Array.from({ length: 30 }).map((_, i) => ((seed * (i + 1) * 9301 + 49297) % 233280) / 233280);
+  }, [message.id]);
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.15 }}
+      initial={{ opacity: 0, scale: 0.95, y: 5 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      transition={{ type: 'spring', damping: 24, stiffness: 300, mass: 0.8 }}
       className={cn(
         'flex px-[5%]',
         isSelf ? 'justify-end' : 'justify-start',
@@ -103,7 +142,7 @@ export function ChatBubble({
               : 'border-black/20 bg-black/5 dark:border-white/20 dark:bg-white/10',
           )}>
             <p className={cn("font-medium", isSelf ? "text-white" : "text-black/80 dark:text-white/80")}>
-              {replyToMessage.sender_id === (isSelf ? message.sender_id : message.receiver_id) ? 'You' : ''}
+              {replyToMessage.sender_id === (isSelf ? message.sender_id : message.receiver_id) ? 'You' : 'Them'}
             </p>
             <p className={cn("line-clamp-1", isSelf ? "text-white/90" : "text-black/70 dark:text-white/70")}>
               {replyToMessage.deleted_for_everyone
@@ -123,30 +162,33 @@ export function ChatBubble({
             {/* Image message */}
             {message.type === 'image' && message.image_url && (
               <div className="mb-1 overflow-hidden rounded-md">
-                <img
-                  src={message.image_url}
-                  alt=""
-                  className="max-h-[300px] w-full cursor-pointer object-cover"
-                  loading="lazy"
-                />
+                <div className="relative h-[200px] w-[200px] sm:w-[250px]">
+                  <Image
+                    src={message.image_url}
+                    alt="Photo"
+                    fill
+                    className="cursor-pointer object-cover"
+                    sizes="(max-width: 768px) 200px, 250px"
+                  />
+                </div>
               </div>
             )}
 
             {/* Audio message */}
             {message.type === 'audio' && message.audio_url && (
               <div className="flex min-w-[200px] items-center gap-2 py-1">
-                <button className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-wa-green text-white">
+                <button className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#0A84FF] text-white">
                   <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M8 5v14l11-7z" />
                   </svg>
                 </button>
                 <div className="flex-1">
                   <div className="flex h-2 items-center gap-[2px]">
-                    {Array.from({ length: 30 }).map((_, i) => (
+                    {waveformHeights.map((val, i) => (
                       <div
                         key={i}
-                        className="h-full w-[2px] rounded-full bg-wa-tick-grey/40"
-                        style={{ height: `${Math.random() * 100}%`, minHeight: '2px' }}
+                        className="h-full w-[2px] rounded-full bg-black/20 dark:bg-white/20"
+                        style={{ height: `${val * 100}%`, minHeight: '2px' }}
                       />
                     ))}
                   </div>

@@ -12,14 +12,14 @@ import { groupMessagesByDay, shouldGroupMessages } from '@/lib/utils';
 import type { Message } from '@/types';
 
 interface MessageListProps {
-  initialMessages: Message[];
+  messageState: ReturnType<typeof useMessages>;
   currentUserId: string;
   partnerName: string;
   onReply: (message: Message) => void;
 }
 
 export function MessageList({
-  initialMessages,
+  messageState,
   currentUserId,
   partnerName,
   onReply,
@@ -33,7 +33,7 @@ export function MessageList({
     x: number;
     y: number;
   } | null>(null);
-  const [reactionPickerMsg, setReactionPickerMsg] = useState<Message | null>(null);
+  const [reactionPickerMsg, setReactionPickerMsg] = useState<{ message: Message; x: number; y: number } | null>(null);
   const isAtBottomRef = useRef(true);
 
   const {
@@ -43,7 +43,7 @@ export function MessageList({
     loadMore,
     addMessage,
     updateMessage,
-  } = useMessages(initialMessages);
+  } = messageState;
 
   // Build a map for reply lookups
   const messageMap = new Map(messages.map((m) => [m.id, m]));
@@ -139,7 +139,9 @@ export function MessageList({
           onReply(message);
           break;
         case 'react':
-          setReactionPickerMsg(message);
+          if (contextMenu) {
+            setReactionPickerMsg({ message, x: contextMenu.x, y: contextMenu.y });
+          }
           break;
         case 'copy':
           if (message.text) {
@@ -177,11 +179,11 @@ export function MessageList({
   const handleReaction = useCallback(
     async (emoji: string) => {
       if (!reactionPickerMsg) return;
-      await fetch(`/api/messages/${reactionPickerMsg.id}`, {
+      await fetch(`/api/messages/${reactionPickerMsg.message.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: reactionPickerMsg.reaction === emoji ? 'unreact' : 'react',
+          action: reactionPickerMsg.message.reaction === emoji ? 'unreact' : 'react',
           emoji,
         }),
       });
@@ -292,7 +294,9 @@ export function MessageList({
         <ReactionPicker
           onSelect={handleReaction}
           onClose={() => setReactionPickerMsg(null)}
-          currentReaction={reactionPickerMsg.reaction || undefined}
+          currentReaction={reactionPickerMsg.message.reaction || undefined}
+          x={reactionPickerMsg.x}
+          y={reactionPickerMsg.y}
         />
       )}
     </div>

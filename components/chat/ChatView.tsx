@@ -5,6 +5,7 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { ChatHeader } from './ChatHeader';
 import { MessageList } from './MessageList';
 import { MessageInput } from './MessageInput';
+import { useMessages } from '@/hooks/useMessages';
 import type { Message, SessionUser } from '@/types';
 
 interface ChatViewProps {
@@ -22,6 +23,7 @@ export function ChatView({
 }: ChatViewProps) {
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
+  const messageState = useMessages(initialMessages, currentUser.id);
 
   const handleReply = useCallback((message: Message) => {
     setReplyTo(message);
@@ -44,10 +46,10 @@ export function ChatView({
         />
 
         <MessageList
-          initialMessages={initialMessages}
           currentUserId={currentUser.id}
           partnerName={partnerUser.name}
           onReply={handleReply}
+          messageState={messageState}
         />
 
         <MessageInput
@@ -55,6 +57,7 @@ export function ChatView({
           onCancelReply={handleCancelReply}
           currentUserId={currentUser.id}
           partnerName={partnerUser.name}
+          onSend={messageState.sendMessage}
         />
       </div>
     </AuthProvider>
